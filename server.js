@@ -65,7 +65,26 @@ app.get('/api/psc/:companyNumber', async (req, res) => {
         res.status(500).json({ error: 'API call failed' });
     }
 });
-
+// Search company by name and return first match
+app.get('/api/search-by-name', async (req, res) => {
+    const query = req.query.q;
+    try {
+        const searchData = await callAPI(`/search/companies?q=${encodeURIComponent(query)}&items_per_page=3`);
+        if (!searchData.items || searchData.items.length === 0) {
+            return res.json({ found: false });
+        }
+        const company = searchData.items[0];
+        const pscData = await callAPI(`/company/${company.company_number}/persons-with-significant-control`);
+        res.json({
+            found: true,
+            company_name: company.title,
+            company_number: company.company_number,
+            pscs: pscData.items || []
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'API call failed' });
+    }
+});
 app.listen(3000, () => {
     console.log('Server running at http://localhost:3000');
 });

@@ -106,8 +106,9 @@ async function loadPSC(companyNumber, companyName, card) {
 }
 
 // Step 4: Display PSC list
-function displayPSC(pscs, container) {
+function displayPSC(pscs, container, layer) {
     container.innerHTML = '<strong>Persons with Significant Control (PSC)</strong>';
+    const currentLayer = layer || 1;
 
     pscs.forEach(psc => {
         const isPerson = psc.kind === 'individual-person-with-significant-control';
@@ -129,6 +130,54 @@ function displayPSC(pscs, container) {
             <div class="psc-detail">Country of Residence: ${psc.country_of_residence || 'N/A'}</div>
         `;
 
+ 
+
+       // If Corporate and within 2 layers, show Trace UBO button
+        if (!isPerson && currentLayer < 3) {
+            const traceBtn = document.createElement('button');
+            traceBtn.className = 'trace-btn';
+            traceBtn.textContent = `Trace UBO → (Layer ${currentLayer + 1})`;
+         traceBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    traceBtn.textContent = 'Loading...';
+    traceBtn.disabled = true;
+    traceUBO(psc.name, card, currentLayer + 1);
+});
+            card.appendChild(traceBtn);
+        }
+
+        if (isPerson) {
+            const uboTag = document.createElement('div');
+            uboTag.innerHTML = '<span class="tag tag-ubo">✓ UBO Identified</span>';
+            card.appendChild(uboTag);
+        }
+
         container.appendChild(card);
     });
+}
+
+async function traceUBO(companyName, parentCard, layer) {
+    const resultDiv = document.createElement('div');
+    resultDiv.className = 'trace-result';
+    resultDiv.innerHTML = '<p class="loading">Searching...</p>';
+    parentCard.appendChild(resultDiv);
+
+    try {
+        const response = await fetch(
+            `/api/search-by-name?q=${encodeURIComponent(companyName)}`
+        );
+        const data = await response.json();
+
+        if (!data.found || !data.pscs || data.pscs.length === 0) {
+            resultDiv.innerHTML = '<p class="error">No PSC data found for this entity.</p>';
+            return;
+        }
+
+        resultDiv.innerHTML = `<strong>↳ ${data.company_name}</strong>`;
+        displayPSC(data.pscs, resultDiv, layer);
+
+    } catch (error) {
+        resultDiv.innerHTML = '<p class="error">Error tracing UBO.</p>';
+        console.error(error);
+    }
 }
