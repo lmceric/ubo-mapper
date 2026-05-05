@@ -10,7 +10,6 @@ const app = express();
 app.use(cors());
 app.use(express.static('.'));
 
-
 const BASE_URL = 'api.company-information.service.gov.uk';
 
 function callAPI(path) {
@@ -20,23 +19,16 @@ function callAPI(path) {
             hostname: BASE_URL,
             path: path,
             method: 'GET',
-            headers: {
-                'Authorization': 'Basic ' + auth
-            }
+            headers: { 'Authorization': 'Basic ' + auth }
         };
-
         const req = https.request(options, (res) => {
             let data = '';
             res.on('data', chunk => data += chunk);
             res.on('end', () => {
-                try {
-                    resolve(JSON.parse(data));
-                } catch (e) {
-                    reject(e);
-                }
+                try { resolve(JSON.parse(data)); }
+                catch (e) { reject(e); }
             });
         });
-
         req.on('error', reject);
         req.end();
     });
@@ -44,13 +36,10 @@ function callAPI(path) {
 
 app.get('/api/search', async (req, res) => {
     const query = req.query.q;
-    console.log('Query received:', query);
     try {
         const data = await callAPI(`/search/companies?q=${encodeURIComponent(query)}&items_per_page=5`);
-        console.log('API response:', JSON.stringify(data));
         res.json(data);
     } catch (error) {
-        console.error(error);
         res.status(500).json({ error: 'API call failed' });
     }
 });
@@ -61,11 +50,10 @@ app.get('/api/psc/:companyNumber', async (req, res) => {
         const data = await callAPI(`/company/${companyNumber}/persons-with-significant-control`);
         res.json(data);
     } catch (error) {
-        console.error(error);
         res.status(500).json({ error: 'API call failed' });
     }
 });
-// Search company by name and return first match
+
 app.get('/api/search-by-name', async (req, res) => {
     const query = req.query.q;
     try {
@@ -85,6 +73,88 @@ app.get('/api/search-by-name', async (req, res) => {
         res.status(500).json({ error: 'API call failed' });
     }
 });
+
+app.get('/api/trace-full/:companyNumber', async (req, res) => {
+    const { companyNumber } = req.params;
+    const nodes = [];
+    const links = [];
+    const visited = new Set();
+
+    async function trace(companyId, companyName, depth) {
+        if (depth > 4 || visited.has(companyId)) return;
+        visited.add(companyId);
+
+        if (!nodes.find(n => n.id === companyId)) {
+            nodes.push({
+                id: companyId,
+                label: companyName,
+                type: depth === 0 ? 'target' : 'corporate'
+            });
+        }
+
+        try {
+            const data = await callAPI(`/company/${companyId}/persons-with-significant-control`);
+            if (!data.items) return;
+
+            for (const psc of data.items) {
+                const isPerson = psc.kind === 'individual-person-with-significant-control';
+                const normalizedName = psc.name.toLowerCase().trim();
+                const nodeId = normalizedName.replace(/\s+/g, '-');
+
+                if (!nodes.find(n => n.label.toLowerCase().trim() === normalizedName)) {
+                    nodes.push({
+                        id: nodeId,
+                        label: psc.name,
+                        type: isPerson ? 'individual' : 'corporate',
+                        nationality: psc.nationality,
+                        country: psc.country_of_residence,
+                        control: psc.natures_of_control ? psc.natures_of_control.join(', ') : 'N/A'
+                    });
+                }
+
+                const existingNode = nodes.find(n => n.label.toLowerCase().trim() === normalizedName);
+                const resolvedNodeId = existingNode ? existingNode.id : nodeId;
+
+                const linkExists = links.find(l =>
+                    l.source === companyId && l.target === resolvedNodeId
+                );
+                if (!linkExists) {
+                    links.push({ source: companyId, target: resolvedNodeId, label: '75-100%' });
+                }
+
+                if (!isPerson) {
+                    const searchData = await callAPI(`/search/companies?q=${encodeURIComponent(psc.name)}&items_per_page=1`);
+                    if (searchData.items && searchData.items.length > 0) {
+                        const corp = searchData.items[0];
+                        const corpNodeId = corp.company_number;
+
+                        const existingByName = nodes.find(n => n.label.toLowerCase().trim() === normalizedName);
+                        if (existingByName) {
+                            existingByName.id = corpNodeId;
+                            links.forEach(l => {
+                                if (l.source === resolvedNodeId) l.source = corpNodeId;
+                                if (l.target === resolvedNodeId) l.target = corpNodeId;
+                            });
+                        }
+
+                        await trace(corpNodeId, corp.title, depth + 1);
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('Trace error:', e);
+        }
+    }
+
+    try {
+        const companyData = await callAPI(`/company/${companyNumber}`);
+        await trace(companyNumber, companyData.company_name, 0);
+        res.json({ nodes, links });
+    } catch (e) {
+        res.status(500).json({ error: 'Trace failed' });
+    }
+});
+
 app.listen(3000, () => {
     console.log('Server running at http://localhost:3000');
 });

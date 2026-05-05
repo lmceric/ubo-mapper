@@ -7,18 +7,47 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
+    <div class="header">
         <h1>UBO Mapper</h1>
         <p class="subtitle">UK Company Beneficial Ownership Explorer</p>
-        
         <div class="search-box">
             <input type="text" id="searchInput" placeholder="Enter company name..." />
             <button id="searchBtn">Search</button>
         </div>
-
-        <div id="results"></div>
     </div>
 
+    <div class="main-layout">
+        <div class="left-panel">
+            <div class="panel-label">SEARCH RESULTS</div>
+            <div id="results"></div>
+        </div>
+
+        <div class="mid-panel">
+            <div class="panel-label">CURRENT COMPANY STRUCTURE</div>
+            <div id="mid-graph"></div>
+            <div class="legend">
+                <span>🔵 Target</span>
+                <span>🟠 Corporate PSC</span>
+                <span>🟢 UBO</span>
+            </div>
+            <div id="mid-empty" class="empty-state">Click a company to view its structure</div>
+        </div>
+
+    <div class="right-panel">
+    <div class="panel-label-row">
+        <span class="panel-label">CUMULATIVE OWNERSHIP MAP</span>
+        <button id="endSessionBtn" class="end-session-btn">End Session</button>
+    </div>
+    <div id="right-graph"></div>
+    <div id="right-empty" class="empty-state">All searched companies will appear here</div>
+</div>
+    </div>
+
+    <div class="disclaimer">
+        ⚠️ Data sourced from Companies House public register. For research purposes only. Always verify with official sources before making compliance decisions.
+    </div>
+
+    <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
