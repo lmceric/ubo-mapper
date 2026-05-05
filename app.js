@@ -119,8 +119,24 @@ async function loadPSC(companyNumber, companyName, card) {
             })).filter(l => l.source && l.target);
 
             // Add to right cumulative graph
-            traceData.nodes.forEach(n => addRightNode(n.id, n.label, n.type));
-            traceData.links.forEach(l => addRightLink(l.source, l.target, l.label));
+         traceData.nodes.forEach(n => addRightNode(n.id, n.label, n.type));
+traceData.links.forEach(l => {
+    // Find actual node IDs in rightNodes by matching
+    const sourceNode = rightNodes.find(n => n.id === l.source);
+    const targetNode = rightNodes.find(n => 
+        n.id === l.target || 
+        n.label.toLowerCase().replace(/\./g, '').replace(/\s+/g, ' ').trim() === 
+        l.target.replace(/-/g, ' ').toLowerCase().replace(/\./g, '').trim()
+    );
+    if (sourceNode && targetNode) {
+        const exists = rightLinks.find(lk => 
+            lk.source.id === sourceNode.id && lk.target.id === targetNode.id
+        );
+        if (!exists) {
+            rightLinks.push({ source: sourceNode, target: targetNode, label: l.label });
+        }
+    }
+});
         }
 
         setTimeout(() => {
@@ -257,12 +273,29 @@ function renderMidGraph() {
 
 // ============ RIGHT GRAPH (cumulative) ============
 function addRightNode(id, label, type) {
-    const normalizedId = id.toLowerCase().trim();
-    const existing = rightNodes.find(n => n.id.toLowerCase().trim() === normalizedId);
+    const normalizedLabel = label.toLowerCase().trim()
+        .replace(/\bMr\.\s*/gi, 'mr ')
+        .replace(/\bMrs\.\s*/gi, 'mrs ')
+        .replace(/\bMs\.\s*/gi, 'ms ')
+        .replace(/\bDr\.\s*/gi, 'dr ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    const existing = rightNodes.find(n => {
+        const existingNormalized = n.label.toLowerCase().trim()
+            .replace(/\bMr\.\s*/gi, 'mr ')
+            .replace(/\bMrs\.\s*/gi, 'mrs ')
+            .replace(/\bMs\.\s*/gi, 'ms ')
+            .replace(/\bDr\.\s*/gi, 'dr ')
+            .replace(/\s+/g, ' ')
+            .trim();
+        return existingNormalized === normalizedLabel;
+    });
+
     if (!existing) {
-        rightNodes.push({ id, label, type });
+        const normalizedId = id.toLowerCase().trim();
+        rightNodes.push({ id: normalizedId, label, type });
     } else {
-        // Upgrade node type if target is more important
         if (type === 'target' && existing.type !== 'target') {
             existing.type = type;
         }
@@ -270,12 +303,24 @@ function addRightNode(id, label, type) {
 }
 
 function addRightLink(sourceId, targetId, label) {
-    const sourceNode = rightNodes.find(n => n.id.toLowerCase().trim() === sourceId.toLowerCase().trim());
-    const targetNode = rightNodes.find(n => n.id.toLowerCase().trim() === targetId.toLowerCase().trim());
+    const normalizeId = (id) => id.toLowerCase().trim()
+        .replace(/\bmr\.\s*/gi, 'mr ')
+        .replace(/\bmrs\.\s*/gi, 'mrs ')
+        .replace(/\bms\.\s*/gi, 'ms ')
+        .replace(/\bdr\.\s*/gi, 'dr ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    const normSource = normalizeId(sourceId);
+    const normTarget = normalizeId(targetId);
+
+    const sourceNode = rightNodes.find(n => normalizeId(n.id) === normSource);
+    const targetNode = rightNodes.find(n => normalizeId(n.id) === normTarget);
+
     if (sourceNode && targetNode) {
         const exists = rightLinks.find(l =>
-            l.source.id.toLowerCase() === sourceId.toLowerCase() &&
-            l.target.id.toLowerCase() === targetId.toLowerCase()
+            normalizeId(l.source.id) === normSource &&
+            normalizeId(l.target.id) === normTarget
         );
         if (!exists) {
             rightLinks.push({ source: sourceNode, target: targetNode, label });
