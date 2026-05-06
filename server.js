@@ -1,6 +1,5 @@
-const fs = require('fs');
-const envContent = fs.readFileSync(require('path').resolve(__dirname, '.env'), 'utf8');
-const API_KEY = envContent.match(/CH_API_KEY=(.+)/)[1].trim();
+require('dotenv').config();
+const API_KEY = process.env.CH_API_KEY;
 
 const express = require('express');
 const cors = require('cors');
