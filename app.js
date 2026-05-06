@@ -1,59 +1,68 @@
-document.addEventListener('DOMContentLoaded', () => {
-document.getElementById('expandBtn').addEventListener('click', () => {
-    const panel = document.getElementById('right-panel');
-    const btn = document.getElementById('expandBtn');
-    const floatBtn = document.getElementById('floatCloseBtn');
-    
-    panel.classList.add('fullscreen');
-    btn.style.display = 'none';
-    floatBtn.style.display = 'block';
-    setTimeout(() => renderRightGraph(), 100);
-});
-
-document.getElementById('floatCloseBtn').addEventListener('click', () => {
-    const panel = document.getElementById('right-panel');
-    const btn = document.getElementById('expandBtn');
-    const floatBtn = document.getElementById('floatCloseBtn');
-    
-    panel.classList.remove('fullscreen');
-    btn.style.display = '';
-    floatBtn.style.display = 'none';
-    setTimeout(() => renderRightGraph(), 100);
-});
 // ============ GRAPH STATE ============
-// Mid graph: current company only
 let midNodes = [];
 let midLinks = [];
-
-// Right graph: cumulative all companies
 let rightNodes = [];
 let rightLinks = [];
 
-// ============ SEARCH ============
-document.getElementById('searchBtn').addEventListener('click', () => {
-    const query = document.getElementById('searchInput').value.trim();
-    if (!query) return;
-    searchCompany(query);
-});
+// ============ EVENT LISTENERS ============
+document.addEventListener('DOMContentLoaded', () => {
 
-document.getElementById('searchInput').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
+    document.getElementById('searchBtn').addEventListener('click', () => {
         const query = document.getElementById('searchInput').value.trim();
         if (!query) return;
         searchCompany(query);
-    }
+    });
+
+    document.getElementById('searchInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) return;
+            searchCompany(query);
+        }
+    });
+
+    document.getElementById('endSessionBtn').addEventListener('click', () => {
+        rightNodes = [];
+        rightLinks = [];
+        const graphDiv = document.getElementById('right-graph');
+        if (graphDiv) graphDiv.innerHTML = '';
+        const emptyDiv = document.getElementById('right-empty');
+        if (emptyDiv) emptyDiv.style.display = 'block';
+    });
+
+    document.getElementById('expandBtn').addEventListener('click', () => {
+        const panel = document.getElementById('right-panel');
+        const btn = document.getElementById('expandBtn');
+        const floatBtn = document.getElementById('floatCloseBtn');
+        panel.classList.add('fullscreen');
+        btn.style.display = 'none';
+        floatBtn.style.display = 'block';
+        setTimeout(() => renderRightGraph(), 100);
+    });
+
+    document.getElementById('floatCloseBtn').addEventListener('click', () => {
+        const panel = document.getElementById('right-panel');
+        const btn = document.getElementById('expandBtn');
+        const floatBtn = document.getElementById('floatCloseBtn');
+        panel.classList.remove('fullscreen');
+        btn.style.display = '';
+        floatBtn.style.display = 'none';
+        setTimeout(() => renderRightGraph(), 100);
+    });
+
 });
 
+// ============ SEARCH ============
 async function searchCompany(query) {
     midNodes = [];
     midLinks = [];
     const midGraphDiv = document.getElementById('mid-graph');
     if (midGraphDiv) midGraphDiv.innerHTML = '';
-    
+
     const results = document.getElementById('results');
     results.innerHTML = '<p class="loading">Searching...</p>';
-    
-      try {
+
+    try {
         const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
         const data = await response.json();
 
@@ -102,7 +111,6 @@ async function loadPSC(companyNumber, companyName, card) {
         return;
     }
 
-    // Reset mid graph for this company
     midNodes = [];
     midLinks = [];
 
@@ -113,7 +121,6 @@ async function loadPSC(companyNumber, companyName, card) {
     card.appendChild(pscSection);
 
     try {
-        // Load PSC for left panel display
         const response = await fetch(`/api/psc/${companyNumber}`);
         const data = await response.json();
 
@@ -123,51 +130,48 @@ async function loadPSC(companyNumber, companyName, card) {
             displayPSC(data.items, pscSection, 1, companyNumber);
         }
 
-        // Auto trace full UBO chain for graphs
         const traceResponse = await fetch(`/api/trace-full/${companyNumber}`);
         const traceData = await traceResponse.json();
 
         if (traceData.nodes && traceData.nodes.length > 0) {
-            // Build mid graph (current company only)
             midNodes = traceData.nodes.map(n => ({ ...n }));
             midLinks = traceData.links.map(l => ({
-                source: midNodes.find(n => n.id === l.source),
-                target: midNodes.find(n => n.id === l.target),
+                source: midNodes.find(n => n.id === (l.source.id || l.source)),
+                target: midNodes.find(n => n.id === (l.target.id || l.target)),
                 label: l.label
             })).filter(l => l.source && l.target);
 
-            // Add to right cumulative graph
-         traceData.nodes.forEach(n => addRightNode(n.id, n.label, n.type));
-traceData.links.forEach(l => {
-    const normalizeId = (id) => id.toLowerCase().replace(/\./g, '').replace(/\s+/g, '-').trim();
-    
-    const sourceNode = rightNodes.find(n => 
-        n.id === l.source || 
-        normalizeId(n.id) === normalizeId(l.source) ||
-        normalizeId(n.label) === normalizeId(l.source)
-    ) || rightNodes.find(n => {
-        const traceNode = traceData.nodes.find(tn => tn.id === l.source);
-        return traceNode && normalizeId(n.label) === normalizeId(traceNode.label);
-    });
+            traceData.nodes.forEach(n => addRightNode(n.id, n.label, n.type));
+            traceData.links.forEach(l => {
+                const normalizeId = (id) => id.toLowerCase().replace(/\./g, '').replace(/\s+/g, '-').trim();
 
-    const targetNode = rightNodes.find(n => 
-        n.id === l.target || 
-        normalizeId(n.id) === normalizeId(l.target) ||
-        normalizeId(n.label) === normalizeId(l.target)
-    ) || rightNodes.find(n => {
-        const traceNode = traceData.nodes.find(tn => tn.id === l.target);
-        return traceNode && normalizeId(n.label) === normalizeId(traceNode.label);
-    });
-    
-    if (sourceNode && targetNode) {
-        const exists = rightLinks.find(lk => 
-            lk.source.id === sourceNode.id && lk.target.id === targetNode.id
-        );
-        if (!exists) {
-            rightLinks.push({ source: sourceNode, target: targetNode, label: l.label });
-        }
-    }
-});
+                const sourceNode = rightNodes.find(n =>
+                    n.id === l.source ||
+                    normalizeId(n.id) === normalizeId(l.source) ||
+                    normalizeId(n.label) === normalizeId(l.source)
+                ) || rightNodes.find(n => {
+                    const traceNode = traceData.nodes.find(tn => tn.id === l.source);
+                    return traceNode && normalizeId(n.label) === normalizeId(traceNode.label);
+                });
+
+                const targetNode = rightNodes.find(n =>
+                    n.id === l.target ||
+                    normalizeId(n.id) === normalizeId(l.target) ||
+                    normalizeId(n.label) === normalizeId(l.target)
+                ) || rightNodes.find(n => {
+                    const traceNode = traceData.nodes.find(tn => tn.id === l.target);
+                    return traceNode && normalizeId(n.label) === normalizeId(traceNode.label);
+                });
+
+                if (sourceNode && targetNode) {
+                    const exists = rightLinks.find(lk =>
+                        lk.source.id === sourceNode.id && lk.target.id === targetNode.id
+                    );
+                    if (!exists) {
+                        rightLinks.push({ source: sourceNode, target: targetNode, label: l.label });
+                    }
+                }
+            });
         }
 
         setTimeout(() => {
@@ -230,7 +234,6 @@ function displayPSC(pscs, container, layer, parentCompanyId) {
 
         addMidNode(nodeId, psc.name, nodeType);
         addMidLink(companyId, nodeId, '75-100%');
-
         addRightNode(nodeId, psc.name, nodeType);
         addRightLink(companyId, nodeId, '75-100%');
 
@@ -259,7 +262,6 @@ async function traceUBO(companyName, parentCard, layer, parentId) {
         resultDiv.innerHTML = `<strong>↳ ${data.company_name}</strong>`;
         displayPSC(data.pscs, resultDiv, layer, corpNodeId);
 
-        // Re-fetch full trace for active company to update right graph
         const activeCard = document.querySelector('.company-card.active');
         const pscSection = activeCard ? activeCard.querySelector('.psc-section') : null;
         const companyNumber = pscSection ? pscSection.dataset.companyId : null;
@@ -271,10 +273,7 @@ async function traceUBO(companyName, parentCard, layer, parentId) {
             if (traceData.nodes && traceData.nodes.length > 0) {
                 const normalizeId = (id) => id.toLowerCase().replace(/\./g, '').replace(/\s+/g, '-').trim();
 
-                // Add new nodes to right graph
                 traceData.nodes.forEach(n => addRightNode(n.id, n.label, n.type));
-
-                // Add new links to right graph
                 traceData.links.forEach(l => {
                     const sourceNode = rightNodes.find(n =>
                         n.id === l.source ||
@@ -307,7 +306,7 @@ async function traceUBO(companyName, parentCard, layer, parentId) {
     }
 }
 
-// ============ MID GRAPH (current company) ============
+// ============ MID GRAPH ============
 function addMidNode(id, label, type) {
     if (!midNodes.find(n => n.id === id)) {
         midNodes.push({ id, label, type });
@@ -329,7 +328,6 @@ function renderMidGraph() {
 
     graphDiv.innerHTML = '';
     if (emptyDiv) emptyDiv.style.display = 'none';
-
     if (midNodes.length === 0) return;
 
     const rect = graphDiv.getBoundingClientRect();
@@ -339,7 +337,7 @@ function renderMidGraph() {
     drawGraph(graphDiv, midNodes, midLinks, width, height);
 }
 
-// ============ RIGHT GRAPH (cumulative) ============
+// ============ RIGHT GRAPH ============
 function addRightNode(id, label, type) {
     const normalizedLabel = label.toLowerCase().trim()
         .replace(/\bMr\.\s*/gi, 'mr ')
@@ -403,7 +401,6 @@ function renderRightGraph() {
 
     graphDiv.innerHTML = '';
     if (emptyDiv) emptyDiv.style.display = 'none';
-
     if (rightNodes.length === 0) return;
 
     const rect = graphDiv.getBoundingClientRect();
@@ -413,6 +410,7 @@ function renderRightGraph() {
     drawGraph(graphDiv, rightNodes, rightLinks, width, height);
 }
 
+// ============ DRAW GRAPH ============
 function drawGraph(graphDiv, nodes, links, width, height) {
     if (nodes.length === 0) return;
 
@@ -440,7 +438,6 @@ function drawGraph(graphDiv, nodes, links, width, height) {
         .attr('d', 'M0,-5L10,0L0,5')
         .attr('fill', '#a0aec0');
 
-    // For right graph, add zoom/pan container
     const container = graphDiv.id === 'right-graph'
         ? svg.append('g').attr('class', 'zoom-group')
         : svg.append('g');
@@ -455,11 +452,11 @@ function drawGraph(graphDiv, nodes, links, width, height) {
     }
 
     const nodesCopy = nodes.map(n => ({ ...n }));
-   const linksCopy = links.map(l => ({
-    source: nodesCopy.find(n => n.id === (l.source.id || l.source)),
-    target: nodesCopy.find(n => n.id === (l.target.id || l.target)),
-    label: l.label
-})).filter(l => l.source && l.target);
+    const linksCopy = links.map(l => ({
+        source: nodesCopy.find(n => n.id === (l.source.id || l.source)),
+        target: nodesCopy.find(n => n.id === (l.target.id || l.target)),
+        label: l.label
+    })).filter(l => l.source && l.target);
 
     nodesCopy.forEach((node, i) => {
         node.x = width / 2 + (Math.random() - 0.5) * 150;
@@ -575,4 +572,3 @@ function drawGraph(graphDiv, nodes, links, width, height) {
         node.attr('transform', d => `translate(${d.x},${d.y})`);
     });
 }
-}); // end DOMContentLoaded
