@@ -1,11 +1,24 @@
-const BASE_URL = '';
-document.getElementById('endSessionBtn').addEventListener('click', () => {
-    rightNodes = [];
-    rightLinks = [];
-    const graphDiv = document.getElementById('right-graph');
-    if (graphDiv) graphDiv.innerHTML = '';
-    const emptyDiv = document.getElementById('right-empty');
-    if (emptyDiv) emptyDiv.style.display = 'block';
+document.addEventListener('DOMContentLoaded', () => {
+document.getElementById('expandBtn').addEventListener('click', () => {
+    const panel = document.getElementById('right-panel');
+    const btn = document.getElementById('expandBtn');
+    const floatBtn = document.getElementById('floatCloseBtn');
+    
+    panel.classList.add('fullscreen');
+    btn.style.display = 'none';
+    floatBtn.style.display = 'block';
+    setTimeout(() => renderRightGraph(), 100);
+});
+
+document.getElementById('floatCloseBtn').addEventListener('click', () => {
+    const panel = document.getElementById('right-panel');
+    const btn = document.getElementById('expandBtn');
+    const floatBtn = document.getElementById('floatCloseBtn');
+    
+    panel.classList.remove('fullscreen');
+    btn.style.display = '';
+    floatBtn.style.display = 'none';
+    setTimeout(() => renderRightGraph(), 100);
 });
 // ============ GRAPH STATE ============
 // Mid graph: current company only
@@ -32,10 +45,15 @@ document.getElementById('searchInput').addEventListener('keypress', (e) => {
 });
 
 async function searchCompany(query) {
+    midNodes = [];
+    midLinks = [];
+    const midGraphDiv = document.getElementById('mid-graph');
+    if (midGraphDiv) midGraphDiv.innerHTML = '';
+    
     const results = document.getElementById('results');
     results.innerHTML = '<p class="loading">Searching...</p>';
-
-    try {
+    
+      try {
         const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
         const data = await response.json();
 
@@ -557,3 +575,4 @@ function drawGraph(graphDiv, nodes, links, width, height) {
         node.attr('transform', d => `translate(${d.x},${d.y})`);
     });
 }
+}); // end DOMContentLoaded

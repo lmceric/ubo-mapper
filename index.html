@@ -33,10 +33,13 @@
             <div id="mid-empty" class="empty-state">Click a company to view its structure</div>
         </div>
 
-    <div class="right-panel">
+<div class="right-panel" id="right-panel">
     <div class="panel-label-row">
         <span class="panel-label">CUMULATIVE OWNERSHIP MAP</span>
-        <button id="endSessionBtn" class="end-session-btn">End Session</button>
+        <div style="display:flex; gap:8px;">
+            <button id="expandBtn" class="expand-btn">⛶ Expand</button>
+            <button id="endSessionBtn" class="end-session-btn">End Session</button>
+        </div>
     </div>
     <div id="right-graph"></div>
     <div id="right-empty" class="empty-state">All searched companies will appear here</div>
@@ -49,5 +52,6 @@
 
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="app.js"></script>
+    <button id="floatCloseBtn" style="display:none; position:fixed; bottom:50px; right:20px; z-index:99999; padding:8px 16px; background:#c53030; color:white; border:none; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer;">✕ Close Fullscreen</button>
 </body>
 </html>

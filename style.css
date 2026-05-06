@@ -287,6 +287,8 @@ button:hover {
     align-items: center;
     justify-content: space-between;
     margin-bottom: 10px;
+     position: relative;
+    z-index: 1001;
 }
 
 .panel-label-row .panel-label {
@@ -306,4 +308,44 @@ button:hover {
 
 .end-session-btn:hover {
     background: #9b2c2c;
+}
+.expand-btn {
+    padding: 4px 12px;
+    background: #2c5f8a;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    position: relative;
+    z-index: 1001;
+}
+
+.expand-btn:hover {
+    background: #1e4266;
+}
+
+.right-panel.fullscreen {
+    position: fixed !important;
+    top: 52px !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 32px !important;
+    width: 100vw !important;
+    height: calc(100vh - 84px) !important;
+    z-index: 999;
+    background: white;
+    padding: 20px;
+    border-left: none;
+}
+
+.right-panel.fullscreen #right-graph {
+    height: calc(100vh - 160px) !important;
+    width: 100% !important;
+}
+.right-panel.fullscreen .panel-label-row {
+    position: relative;
+    z-index: 1000;
+    margin-bottom: 10px;
 }

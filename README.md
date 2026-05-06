@@ -78,7 +78,7 @@ No data is stored. All queries are made in real time directly to the Companies H
 
 Eric Chu — KYC/AML compliance professional based in the UK
 
-[LinkedIn](https://www.linkedin.com/in/lmceric)
+[LinkedIn](https://www.linkedin.com/in/ericchu729)
 
 ---
 
