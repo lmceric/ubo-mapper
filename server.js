@@ -95,8 +95,15 @@ app.get('/api/trace-full/:companyNumber', async (req, res) => {
         try {
             const data = await callAPI(`/company/${companyId}/persons-with-significant-control`);
             if (!data.items) return;
-
-            for (const psc of data.items) {
+// Remove duplicate PSCs by normalised name
+const seen = new Set();
+const uniqueItems = data.items.filter(psc => {
+    const key = psc.name.toLowerCase().trim().replace(/\./g, '');
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+});
+for (const psc of uniqueItems) {
                 const isPerson = psc.kind === 'individual-person-with-significant-control';
                 const normalizedName = psc.name.toLowerCase().trim();
                 const nodeId = normalizedName.replace(/\s+/g, '-');

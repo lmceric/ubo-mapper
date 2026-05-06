@@ -121,13 +121,26 @@ async function loadPSC(companyNumber, companyName, card) {
             // Add to right cumulative graph
          traceData.nodes.forEach(n => addRightNode(n.id, n.label, n.type));
 traceData.links.forEach(l => {
-    // Find actual node IDs in rightNodes by matching
-    const sourceNode = rightNodes.find(n => n.id === l.source);
+    const normalizeId = (id) => id.toLowerCase().replace(/\./g, '').replace(/\s+/g, '-').trim();
+    
+    const sourceNode = rightNodes.find(n => 
+        n.id === l.source || 
+        normalizeId(n.id) === normalizeId(l.source) ||
+        normalizeId(n.label) === normalizeId(l.source)
+    ) || rightNodes.find(n => {
+        const traceNode = traceData.nodes.find(tn => tn.id === l.source);
+        return traceNode && normalizeId(n.label) === normalizeId(traceNode.label);
+    });
+
     const targetNode = rightNodes.find(n => 
         n.id === l.target || 
-        n.label.toLowerCase().replace(/\./g, '').replace(/\s+/g, ' ').trim() === 
-        l.target.replace(/-/g, ' ').toLowerCase().replace(/\./g, '').trim()
-    );
+        normalizeId(n.id) === normalizeId(l.target) ||
+        normalizeId(n.label) === normalizeId(l.target)
+    ) || rightNodes.find(n => {
+        const traceNode = traceData.nodes.find(tn => tn.id === l.target);
+        return traceNode && normalizeId(n.label) === normalizeId(traceNode.label);
+    });
+    
     if (sourceNode && targetNode) {
         const exists = rightLinks.find(lk => 
             lk.source.id === sourceNode.id && lk.target.id === targetNode.id
@@ -228,10 +241,47 @@ async function traceUBO(companyName, parentCard, layer, parentId) {
         resultDiv.innerHTML = `<strong>↳ ${data.company_name}</strong>`;
         displayPSC(data.pscs, resultDiv, layer, corpNodeId);
 
-      setTimeout(() => {
-    renderMidGraph();
-    renderRightGraph();
-}, 500);
+        // Re-fetch full trace for active company to update right graph
+        const activeCard = document.querySelector('.company-card.active');
+        const pscSection = activeCard ? activeCard.querySelector('.psc-section') : null;
+        const companyNumber = pscSection ? pscSection.dataset.companyId : null;
+
+        if (companyNumber) {
+            const traceResponse = await fetch(`/api/trace-full/${companyNumber}`);
+            const traceData = await traceResponse.json();
+
+            if (traceData.nodes && traceData.nodes.length > 0) {
+                const normalizeId = (id) => id.toLowerCase().replace(/\./g, '').replace(/\s+/g, '-').trim();
+
+                // Add new nodes to right graph
+                traceData.nodes.forEach(n => addRightNode(n.id, n.label, n.type));
+
+                // Add new links to right graph
+                traceData.links.forEach(l => {
+                    const sourceNode = rightNodes.find(n =>
+                        n.id === l.source ||
+                        normalizeId(n.id) === normalizeId(l.source) ||
+                        normalizeId(n.label) === normalizeId(l.source)
+                    );
+                    const targetNode = rightNodes.find(n =>
+                        n.id === l.target ||
+                        normalizeId(n.id) === normalizeId(l.target) ||
+                        normalizeId(n.label) === normalizeId(l.target)
+                    );
+
+                    if (sourceNode && targetNode) {
+                        const exists = rightLinks.find(lk =>
+                            lk.source.id === sourceNode.id && lk.target.id === targetNode.id
+                        );
+                        if (!exists) {
+                            rightLinks.push({ source: sourceNode, target: targetNode, label: l.label });
+                        }
+                    }
+                });
+            }
+        }
+
+        setTimeout(() => renderRightGraph(), 100);
 
     } catch (error) {
         resultDiv.innerHTML = '<p class="error">Error tracing UBO.</p>';
@@ -387,11 +437,11 @@ function drawGraph(graphDiv, nodes, links, width, height) {
     }
 
     const nodesCopy = nodes.map(n => ({ ...n }));
-    const linksCopy = links.map(l => ({
-        source: nodesCopy.find(n => n.id === l.source.id),
-        target: nodesCopy.find(n => n.id === l.target.id),
-        label: l.label
-    })).filter(l => l.source && l.target);
+   const linksCopy = links.map(l => ({
+    source: nodesCopy.find(n => n.id === (l.source.id || l.source)),
+    target: nodesCopy.find(n => n.id === (l.target.id || l.target)),
+    label: l.label
+})).filter(l => l.source && l.target);
 
     nodesCopy.forEach((node, i) => {
         node.x = width / 2 + (Math.random() - 0.5) * 150;
