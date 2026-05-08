@@ -47,6 +47,9 @@ app.get('/api/psc/:companyNumber', async (req, res) => {
     const { companyNumber } = req.params;
     try {
         const data = await callAPI(`/company/${companyNumber}/persons-with-significant-control`);
+        if (data.items) {
+            data.items = data.items.filter(psc => !psc.ceased_on && psc.ceased !== true);
+        }
         res.json(data);
     } catch (error) {
         res.status(500).json({ error: 'API call failed' });
@@ -97,6 +100,8 @@ app.get('/api/trace-full/:companyNumber', async (req, res) => {
 // Remove duplicate PSCs by normalised name
 const seen = new Set();
 const uniqueItems = data.items.filter(psc => {
+    // Filter out ceased PSCs
+    if (psc.ceased_on || psc.ceased === true) return false;
     const key = psc.name.toLowerCase().trim().replace(/\./g, '');
     if (seen.has(key)) return false;
     seen.add(key);
