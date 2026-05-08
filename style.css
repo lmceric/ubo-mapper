@@ -237,7 +237,10 @@ button:hover {
     color: #718096;
     margin-top: 1px;
 }
-
+.tag-offshore {
+    background: #edf2f7;
+    color: #4a5568;
+}
 .tag {
     display: inline-block;
     padding: 1px 6px;

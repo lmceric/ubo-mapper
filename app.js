@@ -124,9 +124,9 @@ async function loadPSC(companyNumber, companyName, card) {
         const response = await fetch(`/api/psc/${companyNumber}`);
         const data = await response.json();
 
-        if (!data.items || data.items.length === 0) {
-            pscSection.innerHTML = '<p class="error">No PSC data found.</p>';
-        } else {
+       if (!data.items || data.items.length === 0) {
+    pscSection.innerHTML = '<p class="error">⚠️ No PSC data found — company may have filed a "no registrable person" statement. Further investigation required.</p>';
+}else {
             displayPSC(data.items, pscSection, 1, companyNumber);
         }
 
@@ -201,13 +201,15 @@ function displayPSC(pscs, container, layer, parentCompanyId) {
             ? psc.natures_of_control.join(', ')
             : 'N/A';
 
-        const card = document.createElement('div');
+const card = document.createElement('div');
         card.className = 'psc-card';
+        const isOffshore = !isPerson && !psc.nationality && !psc.country_of_residence;
         card.innerHTML = `
             <div class="psc-name">${psc.name}</div>
             ${tag}
             <div class="psc-detail">Control: ${natures}</div>
             <div class="psc-detail">Nationality: ${psc.nationality || 'N/A'} | Residence: ${psc.country_of_residence || 'N/A'}</div>
+            ${isOffshore ? '<div class="psc-detail" style="color:#e53e3e; margin-top:4px;">⚠️ Non-UK entity — further investigation required</div>' : ''}
         `;
 
         if (!isPerson && currentLayer < 3) {
@@ -414,13 +416,15 @@ function renderRightGraph() {
 function drawGraph(graphDiv, nodes, links, width, height) {
     if (nodes.length === 0) return;
 
-    const nodeColors = {
-        target: '#2c5f8a',
-        corporate: '#c05621',
-        individual: '#276749',
-        unknown: '#718096'
-    };
+const nodeColors = {
+    target: '#2c5f8a',
+    corporate: '#c05621',
+    individual: '#276749',
+    offshore: '#718096',
+    unknown: '#718096'
+};
 
+    
     const svg = d3.select(graphDiv)
         .append('svg')
         .attr('width', width)
